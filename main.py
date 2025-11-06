@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
+from typing import List, Any
 import os
 import logging
 from dotenv import load_dotenv
@@ -51,12 +52,19 @@ class Workout(BaseModel):
     name: str
     date: datetime
 
+class SupabaseResponse(BaseModel):
+    data: List[Any]
+
 # ----- Routes -----
 @app.get("/")
 def read_root():
     return {"message": "AI Fitness Backend is running"}
 
-@app.post("/users")
+@app.get("/test")
+def test_route():
+    return {"status": "ok"}
+
+@app.post("/users", response_model=SupabaseResponse)
 def create_user(user: User):
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")
@@ -69,7 +77,7 @@ def create_user(user: User):
         logger.error(f"Error creating user: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/users")
+@app.get("/users", response_model=SupabaseResponse)
 def get_users():
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")
@@ -80,7 +88,7 @@ def get_users():
         logger.error(f"Error fetching users: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/workouts")
+@app.post("/workouts", response_model=SupabaseResponse)
 def create_workout(workout: Workout):
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")
@@ -97,7 +105,7 @@ def create_workout(workout: Workout):
         logger.error(f"Error creating workout: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/workouts")
+@app.get("/workouts", response_model=SupabaseResponse)
 def get_workouts():
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")

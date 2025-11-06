@@ -37,38 +37,4 @@ app = FastAPI()
 # ----- Add CORS middleware -----
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ✅ Replace with your frontend URL in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ----- Pydantic models -----
-class User(BaseModel):
-    email: str
-    display_name: str
-
-class Workout(BaseModel):
-    user_id: str
-    name: str
-    date: datetime
-
-class SupabaseResponse(BaseModel):
-    data: List[Any]
-
-# ----- Routes -----
-@app.get("/")
-def read_root():
-    return {"message": "AI Fitness Backend is running"}
-
-@app.get("/test")
-def test_route():
-    return {"status": "ok"}
-
-@app.post("/users", response_model=SupabaseResponse)
-def create_user(user: User):
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
-    try:
-        data = {"email": user.email, "display_name": user.display_name}
-        response = supabase.table("users").insert(data).execute()
+    allow_origins=["*"],

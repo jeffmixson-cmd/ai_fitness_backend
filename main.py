@@ -18,7 +18,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-supabase = None  # Default to None
+supabase = None
 
 # ----- Initialize Supabase client -----
 try:
@@ -38,3 +38,61 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ----- Pydantic models -----
+class User(BaseModel):
+    email: str
+    display_name: str
+
+class Workout(BaseModel):
+    user_id: str
+    name: str
+    date: datetime
+
+class SupabaseResponse(BaseModel):
+    data: List[Any]
+
+# ----- Routes -----
+@app.get("/")
+def read_root():
+    return {"message": "AI Fitness Backend is running"}
+
+@app.get("/test")
+def test_route():
+    return {"status": "ok"}
+
+@app.post("/users", response_model=SupabaseResponse)
+def create_user(user: User):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+    try:
+        data = {"email": user.email, "display_name": user.display_name}
+        response = supabase.table("users").insert(data).execute()
+        logger.info(f"User created: {user.email}")
+        return {"data": response.data}
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/users", response_model=SupabaseResponse)
+def get_users():
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+    try:
+        response = supabase.table("users").select("*").execute()
+        return {"data": response.data}
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/workouts", response_model=SupabaseResponse)
+def create_workout(workout: Workout):
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized.")
+    try:
+        data = {
+            "user_id": workout

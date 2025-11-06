@@ -1,34 +1,74 @@
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from datetime import datetime
+from typing import List, Any
 from collections import Counter
+import os
+import logging
+from dotenv import load_dotenv
 
-@app.get("/summary")
-def get_summary():
+# ----- Configure logging -----
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# ----- Load environment variables -----
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+supabase = None  # Default to None
+
+# ----- Initialize Supabase client -----
+try:
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise ValueError("Missing Supabase environment variables.")
+    from supabase import create_client, Client
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    logger.info("✅ Supabase client initialized successfully.")
+except Exception as e:
+    logger.warning(f"⚠️ Supabase client not initialized: {e}")
+    supabase = None
+
+# ----- Initialize FastAPI app -----
+app = FastAPI()
+
+# ----- Add CORS middleware -----
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ✅ Replace with your frontend URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ----- Pydantic models -----
+class User(BaseModel):
+    email: str
+    display_name: str
+
+class Workout(BaseModel):
+    user_id: str
+    name: str
+    date: datetime
+
+class SupabaseResponse(BaseModel):
+    data: List[Any]
+
+# ----- Routes -----
+@app.get("/")
+def read_root():
+    return {"message": "AI Fitness Backend is running"}
+
+@app.get("/test")
+def test_route():
+    return {"status": "ok"}
+
+@app.post("/users", response_model=SupabaseResponse)
+def create_user(user: User):
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase client not initialized.")
     try:
-        response = supabase.table("workouts").select("*").execute()
-        workouts = response.data
-
-        if not workouts:
-            return {"summary": "No workouts found."}
-
-        total_workouts = len(workouts)
-
-        # Most recent workout by date
-        most_recent = max(workouts, key=lambda w: w["date"])
-
-        # Most common workout name
-        names = [w["name"] for w in workouts if "name" in w]
-        favorite = Counter(names).most_common(1)[0][0] if names else "N/A"
-
-        return {
-            "total_workouts": total_workouts,
-            "most_recent_workout": {
-                "name": most_recent.get("name", "Unknown"),
-                "date": most_recent.get("date", "Unknown")
-            },
-            "favorite_workout_type": favorite
-        }
-
-    except Exception as e:
-        logger.error(f"Error generating summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        data = {"email": user.email, "display_name": user.display_name}
+        response = supabase.table("users").insert(data).execute()
